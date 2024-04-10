@@ -8,3 +8,6 @@ build-backend = "setuptools.build_meta"
 
 [bdist_wheel]
 universal = 0
+
+[tool.mypy]
+strict = true

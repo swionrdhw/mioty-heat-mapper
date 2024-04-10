@@ -1,3 +1,4 @@
+# type: ignore
 
 # Version: 0.22
 

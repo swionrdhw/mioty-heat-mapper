@@ -1,2 +1,2 @@
 include versioneer.py
-include wifi_heat_mapper/_version.py
+include mioty_heat_mapper/_version.py

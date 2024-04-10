@@ -1,7 +1,9 @@
+# type: ignore
+
 from setuptools import setup, find_packages
 import versioneer
 
-with open('README.md') as file:
+with open("README.md") as file:
     long_description = file.read()
 
 install_requirements = [
@@ -15,10 +17,12 @@ install_requirements = [
 ]
 
 setup(
-    name="whm",
+    name="mhm",
     version=versioneer.get_version(),
     author="Nischay Mamidi",
     author_email="NischayPro@protonmail.com",
+    maintainer="Hans Sjökvist",
+    maintainer_email="hans.sjoekvist@swissphone.com",
     description="A Python application for generating WiFi heatmaps with various parameters",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -31,11 +35,7 @@ setup(
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "Operating System :: POSIX :: Linux",
     ],
-    entry_points={
-        "console_scripts": [
-            "whm = wifi_heat_mapper.main:driver"
-        ]
-    },
+    entry_points={"console_scripts": ["mhm = mioty_heat_mapper.main:driver"]},
     cmdclass=versioneer.get_cmdclass(),
     install_requires=install_requirements,
     packages=find_packages(),

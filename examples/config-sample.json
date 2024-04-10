@@ -1,0 +1,16 @@
+{
+  "configuration": {
+    "contours": 20,
+    "dpi": 120,
+    "factors": ["rssi"],
+    "file_format": "svg",
+    "modes": ["base", "acmqtti"],
+    "map_path": "floor-plan-white.png",
+    "acmqtti_ep_euis": ["5C-33-5C-F1-00-00-01-0A", "5C-33-5C-F1-00-00-01-0B"],
+    "acmqtti_broker": "somebroker:8883",
+    "acmqtti_broker_tls_ca_cert": "letsencrypt-isrgrootx1.pem",
+    "acmqtti_broker_username": "mqtt_username"
+  },
+  "locations": [],
+  "stations": []
+}
