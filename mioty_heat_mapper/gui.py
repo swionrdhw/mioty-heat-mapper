@@ -76,16 +76,16 @@ def start_gui(config_path: Path, state: State) -> None:
                 continue
 
             point_has_measurement = False
-            for l in state.locations:
-                if point_lies_within_circle(mouse, l.position):
+            for loc in state.locations:
+                if point_lies_within_circle(mouse, loc.position):
                     point_has_measurement = True
-                    current_selection = l
+                    current_selection = loc
                     break
 
             if not point_has_measurement:
-                l = Location(position=mouse)
-                state.locations.append(l)
-                current_selection = l
+                loc = Location(position=mouse)
+                state.locations.append(loc)
+                current_selection = loc
 
         if event == "Delete":
             if current_selection is not None:
@@ -170,17 +170,17 @@ def redraw(
     _, height = graph.get_size()
     assert isinstance(height, int)
     graph.DrawImage(data=background, location=(0, height))
-    for l in locations:
-        if l.is_base_station:
-            if l is current_selection:
+    for loc in locations:
+        if loc.is_base_station:
+            if loc is current_selection:
                 fill_color = "#ffcc80"
             else:
                 fill_color = "#ff9800"
-        elif l is current_selection:
+        elif loc is current_selection:
             fill_color = "#81d4fa"
         else:
             fill_color = "#039be5"
-        l.gui_id = graph.draw_circle(l.position, 7, fill_color)
+        loc.gui_id = graph.draw_circle(loc.position, 7, fill_color)
 
 
 def acquire(state: State, current_location: Location) -> None:
@@ -208,6 +208,7 @@ def acquire(state: State, current_location: Location) -> None:
         username=state.acmqtti_broker_username,
         password=password,
         tls_ca_cert=state.acmqtti_broker_tls_ca_cert,
+        sub_measurements=state.sub_measurements,
     )
 
     def record(measurement: Measurement) -> None:

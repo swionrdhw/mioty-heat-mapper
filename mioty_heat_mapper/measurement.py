@@ -1,6 +1,29 @@
 from typing import Optional
 
 
+class SubMeasurement:
+    """
+    Represent a result with sub-measurement values, specifically mioty subpacket
+    information (mioty burst information).
+    """
+
+    def __init__(
+        self, rssi: list[float], snr: list[float], freq: list[float]
+    ) -> None:
+        self.rssi = rssi
+        self.snr = snr
+        self.freq = freq
+
+    def get(self, factor_key: str) -> list[float]:
+        if factor_key == "rssi":
+            return self.rssi
+        elif factor_key == "snr":
+            return self.snr
+        else:
+            print(f"Unknown factor key: {factor_key}")
+            exit(1)
+
+
 class Measurement:
     """
     Represents a result with measurement values.
@@ -13,12 +36,14 @@ class Measurement:
         eq_snr: Optional[float],
         rssi: Optional[float],
         snr: Optional[float],
+        sub_measurement: Optional[SubMeasurement] = None,
     ) -> None:
         self.bs_key = bs_key
         self.ep_key = ep_key
         self.eq_snr = eq_snr
         self.rssi = rssi
         self.snr = snr
+        self.sub_measurement = sub_measurement
 
     def get(self, factor_key: str) -> Optional[float]:
         if factor_key == "rssi":

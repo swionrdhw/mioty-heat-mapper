@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sys
 import traceback
 
@@ -7,7 +8,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Optional
 
-from mioty_heat_mapper.measurement import Location, Measurement
+from mioty_heat_mapper.measurement import Location, Measurement, SubMeasurement
 
 
 SUPPORTED_EXPORT_FILE_FORMATS = ["png", "pdf", "ps", "eps", "svg"]
@@ -95,6 +96,7 @@ class State:
         self.locations: list[Location] = []
         self.map_path = Path("")
         self.modes = supported_modes
+        self.sub_measurements = False
 
         self.acmqtti_ac_eui: Optional[str] = None
         self.acmqtti_ep_euis: Optional[list[str]] = None
@@ -170,6 +172,8 @@ class State:
                     stored_results = location.get("results")
                     assert isinstance(stored_results, list)
                     for result in stored_results:
+                        assert isinstance(result, dict)
+
                         bs_key = result.get("bs_key")
                         assert isinstance(bs_key, str)
 
@@ -194,7 +198,44 @@ class State:
                         )
                         snr = float(snr) if snr is not None else None
 
-                        result = Measurement(bs_key, ep_key, eq_snr, rssi, snr)
+                        sub = result.get("sub")
+                        assert sub is None or isinstance(sub, dict)
+                        if sub is not None:
+                            rssis = sub.get("rssi")
+                            assert isinstance(rssis, list)
+                            for ent in rssis:
+                                assert isinstance(ent, float) or isinstance(
+                                    ent, int
+                                )
+
+                            snrs = sub.get("snr")
+                            assert isinstance(snrs, list)
+                            for ent in snrs:
+                                assert isinstance(ent, float) or isinstance(
+                                    ent, int
+                                )
+
+                            freqs = sub.get("freq")
+                            assert isinstance(freqs, list)
+                            for ent in freqs:
+                                assert isinstance(ent, float) or isinstance(
+                                    ent, int
+                                )
+
+                            sub = SubMeasurement(
+                                [float(e) for e in rssis],
+                                [float(e) for e in snrs],
+                                [float(e) for e in freqs],
+                            )
+
+                        result = Measurement(
+                            bs_key,
+                            ep_key,
+                            eq_snr,
+                            rssi,
+                            snr,
+                            sub_measurement=sub,
+                        )
                         results.append(result)
 
                     x = location.get("x")
@@ -248,6 +289,11 @@ class State:
                 assert isinstance(v, str)
                 self.map_path = Path(v)
 
+                v = configuration.get("sub_measurements")
+                assert v is None or isinstance(v, bool)
+                if v is not None:
+                    self.sub_measurements = v
+
                 v = configuration.get("acmqtti_ac_eui")
                 assert v is None or isinstance(v, str)
                 self.acmqtti_ac_eui = v
@@ -300,6 +346,7 @@ class State:
             "file_format": self.file_format,
             "modes": [str(x) for x in self.modes],
             "map_path": str(self.map_path),
+            "sub_measurements": self.sub_measurements,
         }
         if self.acmqtti_ac_eui is not None:
             configuration["acmqtti_ac_eui"] = self.acmqtti_ac_eui
@@ -324,9 +371,28 @@ class State:
                     {
                         "bs_key": m.bs_key,
                         "ep_key": m.ep_key,
-                        "eq_snr": m.eq_snr,
-                        "rssi": m.rssi,
-                        "snr": m.snr,
+                        "eq_snr": (
+                            round(m.eq_snr, 1) if m.eq_snr is not None else None
+                        ),
+                        "rssi": (
+                            round(m.rssi, 1) if m.rssi is not None else None
+                        ),
+                        "snr": (round(m.snr, 1) if m.snr is not None else None),
+                        "sub": (
+                            {
+                                "rssi": [
+                                    round(e, 1) for e in m.sub_measurement.rssi
+                                ],
+                                "snr": [
+                                    round(e, 1) for e in m.sub_measurement.snr
+                                ],
+                                "freq": [
+                                    round(e, 3) for e in m.sub_measurement.freq
+                                ],
+                            }
+                            if m.sub_measurement is not None
+                            else None
+                        ),
                     }
                     for m in loc.measurements
                 ],
@@ -351,7 +417,29 @@ class State:
             "stations": stations,
         }
         with open(path, "w") as f:
-            json.dump(config, f, indent=4)
+            st = json.dumps(config, indent=2)
+            matches: list[str] = []
+            matches.extend(
+                re.findall(
+                    r"\"rssi\": \[(?:\n(?:\s*)-?[0-9.]+[,\n])+\s*\]",
+                    st,
+                )
+            )
+            matches.extend(
+                re.findall(
+                    r"\"snr\": \[(?:\n(?:\s*)-?[0-9.]+[,\n])+\s*\]",
+                    st,
+                )
+            )
+            matches.extend(
+                re.findall(
+                    r"\"freq\": \[(?:\n(?:\s*)-?[0-9.]+[,\n])+\s*\]",
+                    st,
+                )
+            )
+            for match in matches:
+                st = st.replace(match, match.replace(" ", "").replace("\n", ""))
+            f.write(st)
             print(f"Configuration saved at: {path}")
 
     def validate_or_exit(self) -> None:
