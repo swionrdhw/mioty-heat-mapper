@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import traceback
 
@@ -54,7 +55,7 @@ class QualityFactor:
 
     def supported_for(self, selected_modes: list[Mode]) -> bool:
         for mode in self.modes:
-            if not mode in selected_modes:
+            if mode not in selected_modes:
                 return False
 
         return True
@@ -112,7 +113,7 @@ class State:
                 assert isinstance(stored_modes, list)
                 for mode in stored_modes:
                     assert isinstance(mode, str)
-                    if not mode in [str(x) for x in self.modes]:
+                    if mode not in [str(x) for x in self.modes]:
                         raise Exception(f"Unsupported mode: {mode}")
                 self.modes = stored_modes
 
@@ -120,7 +121,7 @@ class State:
                 assert isinstance(stored_factors, list)
                 for factor in stored_factors:
                     assert isinstance(factor, str)
-                    if not factor in self.factors.keys():
+                    if factor not in self.factors.keys():
                         raise Exception(f"Unsupported factor: {factor}")
                 self.factors = dict(
                     [
@@ -138,7 +139,7 @@ class State:
                     assert isinstance(station, dict)
 
                     bs_key = station.get("bs_key")
-                    assert bs_key == None or isinstance(bs_key, str)
+                    assert bs_key is None or isinstance(bs_key, str)
 
                     v = station.get("description")
                     assert v is None or isinstance(v, str)
@@ -204,7 +205,7 @@ class State:
                     assert isinstance(y, int) or isinstance(y, float)
                     y = float(y)
 
-                    v = station.get("description")
+                    v = location.get("description")
                     assert v is None or isinstance(v, str)
                     description = v
 
@@ -278,7 +279,11 @@ class State:
             traceback.print_tb(tb)  # Fixed format
             exit(1)
         except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
             print("Error loading config:", e)
+            if exc_tb is not None:
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(exc_type, fname, exc_tb.tb_lineno)
             exit(1)
 
     def save(self, path: Path) -> None:
@@ -313,8 +318,8 @@ class State:
 
         locations = [
             {
-                "x": l.position[0],
-                "y": l.position[1],
+                "x": loc.position[0],
+                "y": loc.position[1],
                 "results": [
                     {
                         "bs_key": m.bs_key,
@@ -323,21 +328,21 @@ class State:
                         "rssi": m.rssi,
                         "snr": m.snr,
                     }
-                    for m in l.measurements
+                    for m in loc.measurements
                 ],
             }
-            for l in self.locations
-            if not l.is_base_station
+            for loc in self.locations
+            if not loc.is_base_station
         ]
         stations = [
             {
-                "bs_key": l.bs_key,
-                "description": l.description,
-                "x": l.position[0],
-                "y": l.position[1],
+                "bs_key": loc.bs_key,
+                "description": loc.description,
+                "x": loc.position[0],
+                "y": loc.position[1],
             }
-            for l in self.locations
-            if l.is_base_station
+            for loc in self.locations
+            if loc.is_base_station
         ]
 
         config = {
@@ -370,13 +375,13 @@ class State:
         if self.acmqtti_broker is not None:
             broker = self.acmqtti_broker.split(":")
             if len(broker) != 2:
-                print(f"MQTT Broker must be configured as host:port.")
+                print("MQTT Broker must be configured as host:port.")
                 exit(1)
 
             try:
-                _port = int(broker[1])
+                int(broker[1])
             except:
-                print(f"MQTT Broker must be configured as host:port.")
+                print("MQTT Broker must be configured as host:port.")
                 exit(1)
 
             if (

@@ -53,27 +53,29 @@ def generate_graph(
     # Extracts the data points to be plotted.
     data_points: list[DataPoint] = []
     base_stations: dict[str, BaseStation] = {}
-    for l in state.locations:
-        if l.is_base_station:
-            if l.bs_key is None:
+    for loc in state.locations:
+        if loc.is_base_station:
+            if loc.bs_key is None:
                 continue
-            if bs_key is not None and l.bs_key != bs_key:
+            if bs_key is not None and loc.bs_key != bs_key:
                 continue
 
-            new_bs = BaseStation(l.position[0], l.position[1], l.description)
-            base_stations[l.bs_key] = new_bs
+            new_bs = BaseStation(
+                loc.position[0], loc.position[1], loc.description
+            )
+            base_stations[loc.bs_key] = new_bs
         else:
             val = [
                 v
                 for v in [
                     v.get(factor_key)
-                    for v in l.measurements
+                    for v in loc.measurements
                     if bs_key is None or v.bs_key == bs_key
                 ]
                 if v is not None
             ]
             agg = max(val)
-            dp = DataPoint(l.position[0], l.position[1], agg)
+            dp = DataPoint(loc.position[0], loc.position[1], agg)
             data_points.append(dp)
 
     # Determines effective vmin, vmax and vzero.
@@ -181,7 +183,6 @@ def generate_graph(
 
 
 def generate_graphs(config_path: Path, state: State) -> None:
-    # (data, floor_map, levels=100, dpi=300, file_type="png"):
     """
     Generates all plots from a set of measurements.
     """
