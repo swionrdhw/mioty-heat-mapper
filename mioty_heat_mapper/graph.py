@@ -1,6 +1,7 @@
 import logging
 import math
 import matplotlib.pyplot as plt
+import statistics
 
 from PIL import Image
 from matplotlib.axes import Axes
@@ -53,30 +54,53 @@ def generate_graph(
     # Extracts the data points to be plotted.
     data_points: list[DataPoint] = []
     base_stations: dict[str, BaseStation] = {}
-    for loc in state.locations:
-        if loc.is_base_station:
-            if loc.bs_key is None:
-                continue
-            if bs_key is not None and loc.bs_key != bs_key:
-                continue
 
-            new_bs = BaseStation(
-                loc.position[0], loc.position[1], loc.description
-            )
-            base_stations[loc.bs_key] = new_bs
-        else:
-            val = [
-                v
-                for v in [
-                    v.get(factor_key)
-                    for v in loc.measurements
-                    if bs_key is None or v.bs_key == bs_key
-                ]
-                if v is not None
+    for key, loc in [
+        (key, loc)
+        for loc in state.locations
+        if loc.is_base_station and (key := loc.bs_key) is not None
+    ]:
+        base_stations[key] = BaseStation(
+            loc.position[0], loc.position[1], loc.description
+        )
+
+    for loc in [loc for loc in state.locations if not loc.is_base_station]:
+        if state.sub_measurements:
+            subvals = [
+                (snrs, subs)
+                for meas in loc.measurements
+                if meas.sub_measurement is not None
+                and (bs_key is None or meas.bs_key == bs_key)
+                and (subs := meas.sub_measurement.get(factor_key)) is not None
+                and (snrs := meas.sub_measurement.get("snr")) is not None
             ]
-            agg = max(val)
-            dp = DataPoint(loc.position[0], loc.position[1], agg)
-            data_points.append(dp)
+            vals = [
+                val
+                for (snrs, vals) in subvals
+                for (snr, val) in zip(snrs, vals)
+                if snr > -5
+            ]
+        else:
+            vals = [
+                val
+                for meas in loc.measurements
+                if (bs_key is None or meas.bs_key == bs_key)
+                and (val := meas.get(factor_key)) is not None
+                and (snr := meas.get("snr")) is not None
+                and snr > -5
+            ]
+        if len(vals) == 0:
+            continue
+        agg = max(vals) if bs_key is None else statistics.median(vals)
+        data_points.append(DataPoint(loc.position[0], loc.position[1], agg))
+
+    key = "global" if bs_key is None else bs_key
+
+    if len(data_points) < 4:
+        print(f"Skipping {key} with too few data points.")
+        return
+    else:
+        print(f"Plotting {key} with {len(data_points)} data points...")
 
     # Determines effective vmin, vmax and vzero.
     vmin = factor.vmin
