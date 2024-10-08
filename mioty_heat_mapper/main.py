@@ -8,6 +8,7 @@ from mioty_heat_mapper import __version__
 from mioty_heat_mapper.state import init_config, load_config
 from mioty_heat_mapper.graph import generate_graphs
 from mioty_heat_mapper.gui import start_gui
+from mioty_heat_mapper.wgs84 import sanity_check_impl
 
 
 def driver() -> None:
@@ -116,6 +117,12 @@ def driver() -> None:
     config = load_config(config_path)
 
     config.validate_or_exit()
+
+    try:
+        sanity_check_impl()
+    except Exception as e:
+        print(f"Error in impl: {e}")
+        exit()
 
     if args.mode == "run":
         start_gui(config_path, config)
