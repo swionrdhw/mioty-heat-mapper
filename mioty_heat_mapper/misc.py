@@ -125,7 +125,7 @@ GenericParams = ParamSpec("GenericParams")
 
 
 def with_exception_trace(
-    f: Callable[GenericParams, GenericReturn]
+    f: Callable[GenericParams, GenericReturn],
 ) -> Callable[GenericParams, GenericReturn]:
     @wraps(f)
     def wrapped_f(

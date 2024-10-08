@@ -468,7 +468,7 @@ class State:
 
             try:
                 int(broker[1])
-            except:
+            except Exception as _e:
                 print("MQTT Broker must be configured as host:port.")
                 exit(1)
 
