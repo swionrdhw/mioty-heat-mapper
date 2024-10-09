@@ -7,6 +7,7 @@ from paho.mqtt.enums import CallbackAPIVersion
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from mioty_heat_mapper import wgs84
 from mioty_heat_mapper.measurement import Measurement, SubMeasurement
 from mioty_heat_mapper.misc import with_exception_trace
 
@@ -21,6 +22,7 @@ class AcmqttiConfig:
         ep_euis: Optional[list[str]] = None,
         password: Optional[str] = None,
         tls_ca_cert: Optional[Path] = None,
+        wgs84: Optional[wgs84.World] = None,
         username: Optional[str] = None,
     ) -> None:
         self.ac_eui = ac_eui if ac_eui is not None else "+"
@@ -30,13 +32,42 @@ class AcmqttiConfig:
         self.password = password
         self.sub_measurements = sub_measurements
         self.tls_ca_cert = tls_ca_cert
+        self.wgs84 = wgs84
         self.username = username
 
 
+def build_locadis_train_request(lat: float, lon: float) -> dict[str, Any]:
+    return {
+        "methods": "train",
+        "params": [
+            {
+                "PositionWGS84": {
+                    "latitude": lat,
+                    "longitude": lon,
+                    "northing": "N",
+                    "easting": "E",
+                    "heightOverGround": 0.0,
+                    "geoid": "WGS84",
+                    "valid": True,
+                    "timestamp": int(
+                        datetime.datetime.now(datetime.timezone.utc).timestamp()
+                        * 1000
+                    ),
+                }
+            }
+        ],
+    }
+
+
 def measure(
-    config: AcmqttiConfig, record: Callable[[Measurement], None]
+    config: AcmqttiConfig,
+    record: Callable[[Measurement], None],
+    lat_lon: Optional[tuple[float, float]],
 ) -> mqtt.Client:
-    topics = [f"mioty/{config.ac_eui}/version"]
+    topics = [
+        f"mioty/{config.ac_eui}/version",
+        "locadis/api_res",
+    ]
 
     for ep_eui in config.ep_euis:
         topics.append(f"mioty/{config.ac_eui}/v1/{ep_eui}/uplink")
@@ -48,6 +79,11 @@ def measure(
         print(f"--- connected to broker; subscribing to {', '.join(topics)}")
         for topic in topics:
             client.subscribe(topic)
+
+        if lat_lon is not None:
+            print("Issuing Locadis 'train' command...")
+            train_request = build_locadis_train_request(lat_lon[0], lat_lon[1])
+            client.publish("locadis/api_req", json.dumps(train_request))
 
     def on_disconnect(
         client: mqtt.Client, _2: Any, _3: Any, reason_code: ReasonCode, _5: Any
@@ -62,6 +98,13 @@ def measure(
         client: mqtt.Client, _2: Any, message: mqtt.MQTTMessage
     ) -> None:
         dt = datetime.datetime.now().isoformat(" ", "seconds")
+
+        # Handle messages from locadis.
+        if message.topic == "locadis/api_res":
+            p = json.loads(message.payload)
+            print(f"[{dt}] Locadis response: {p}")
+            return
+
         topic = message.topic.split("/")
         ac_eui = topic[1]
         version = topic[2]

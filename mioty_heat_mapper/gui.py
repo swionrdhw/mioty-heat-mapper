@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Optional
 
 import mioty_heat_mapper.acmqtti as acmqtti
+
+from mioty_heat_mapper import wgs84
 from mioty_heat_mapper.graph import generate_graphs
 from mioty_heat_mapper.measurement import Location, Measurement
 from mioty_heat_mapper.misc import load_image_as_png
@@ -23,6 +25,9 @@ def start_gui(config_path: Path, state: State) -> None:
     except Exception as e:
         print(f"Error loading background image: {e}")
         exit(1)
+
+    state.map_width = float(canvas_size[0])
+    state.map_height = float(canvas_size[1])
 
     right_click_items = [
         "Items",
@@ -214,7 +219,14 @@ def acquire(state: State, current_location: Location) -> None:
     def record(measurement: Measurement) -> None:
         current_location.measurements.append(measurement)
 
-    mqtt_client = acmqtti.measure(config, record)
+    lat_lon: Optional[tuple[float, float]] = None
+    if state.wgs84 is not None:
+        world = wgs84.World(state.wgs84, state.map_width, state.map_height)
+        coord = world.to_wgs(
+            current_location.position[0], current_location.position[1]
+        )
+        lat_lon = (coord.lat(), coord.lon())
+    mqtt_client = acmqtti.measure(config, record, lat_lon)
 
     sg.popup_cancel("Measuring until cancelled...", keep_on_top=True)
 

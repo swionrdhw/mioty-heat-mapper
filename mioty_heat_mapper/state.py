@@ -8,6 +8,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Optional
 
+from mioty_heat_mapper import wgs84
 from mioty_heat_mapper.measurement import Location, Measurement, SubMeasurement
 
 
@@ -103,6 +104,12 @@ class State:
         self.acmqtti_broker: Optional[str] = None
         self.acmqtti_broker_tls_ca_cert: Optional[Path] = None
         self.acmqtti_broker_username: Optional[str] = None
+
+        self.wgs84: Optional[tuple[wgs84.Coord, wgs84.Coord, wgs84.Coord]] = (
+            None
+        )
+        self.map_width = 0.0
+        self.map_height = 0.0
 
     def load(self, path: Path) -> None:
         try:
@@ -260,6 +267,28 @@ class State:
 
                 self.locations = locations
 
+                wgs84_coords = configuration.get("wgs84")
+                assert wgs84_coords is None or isinstance(wgs84_coords, list)
+                if isinstance(wgs84_coords, list):
+                    assert len(wgs84_coords) == 3
+                    coord_idx = 0
+                    for coord in wgs84_coords:
+                        assert isinstance(coord, dict)
+                        lat = coord.get("lat")
+                        lon = coord.get("lon")
+                        assert isinstance(lat, float) or isinstance(lat, int)
+                        assert isinstance(lon, float) or isinstance(lon, int)
+                        if coord_idx == 0:
+                            wgs_bot_left = wgs84.Coord(lat, lon)
+                        elif coord_idx == 1:
+                            wgs_bot_right = wgs84.Coord(lat, lon)
+                        elif coord_idx == 2:
+                            wgs_top_left = wgs84.Coord(lat, lon)
+                        else:
+                            raise Exception("Too many WGS84 coordinates.")
+                        coord_idx += 1
+                    self.wgs84 = (wgs_bot_left, wgs_bot_right, wgs_top_left)
+
                 v = configuration.get("colormap")
                 assert v is None or isinstance(v, str)
                 if isinstance(v, str):
@@ -362,6 +391,12 @@ class State:
             configuration["acmqtti_broker_username"] = (
                 self.acmqtti_broker_username
             )
+        if self.wgs84 is not None:
+            configuration["wgs84"] = [
+                {"lat": self.wgs84[0].lat(), "lon": self.wgs84[0].lon()},
+                {"lat": self.wgs84[1].lat(), "lon": self.wgs84[1].lon()},
+                {"lat": self.wgs84[2].lat(), "lon": self.wgs84[2].lon()},
+            ]
 
         locations = [
             {
