@@ -8,13 +8,16 @@ class SubMeasurement:
     """
 
     def __init__(
-        self, rssi: list[float], snr: list[float], freq: list[float]
+        self,
+        rssi: list[float | None],
+        snr: list[float | None],
+        freq: list[float | None],
     ) -> None:
         self.rssi = rssi
         self.snr = snr
         self.freq = freq
 
-    def get(self, factor_key: str) -> list[float]:
+    def get(self, factor_key: str) -> list[float | None]:
         if factor_key == "rssi":
             return self.rssi
         elif factor_key == "snr":

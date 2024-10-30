@@ -78,7 +78,7 @@ def generate_graph(
                 val
                 for (snrs, vals) in subvals
                 for (snr, val) in zip(snrs, vals)
-                if snr > -5
+                if snr is not None and snr > -5 and val is not None
             ]
         else:
             vals = [

@@ -211,28 +211,43 @@ class State:
                             rssis = sub.get("rssi")
                             assert isinstance(rssis, list)
                             for ent in rssis:
-                                assert isinstance(ent, float) or isinstance(
-                                    ent, int
+                                assert (
+                                    ent is None
+                                    or isinstance(ent, float)
+                                    or isinstance(ent, int)
                                 )
 
                             snrs = sub.get("snr")
                             assert isinstance(snrs, list)
                             for ent in snrs:
-                                assert isinstance(ent, float) or isinstance(
-                                    ent, int
+                                assert (
+                                    ent is None
+                                    or isinstance(ent, float)
+                                    or isinstance(ent, int)
                                 )
 
                             freqs = sub.get("freq")
                             assert isinstance(freqs, list)
                             for ent in freqs:
-                                assert isinstance(ent, float) or isinstance(
-                                    ent, int
+                                assert (
+                                    ent is None
+                                    or isinstance(ent, float)
+                                    or isinstance(ent, int)
                                 )
 
                             sub = SubMeasurement(
-                                [float(e) for e in rssis],
-                                [float(e) for e in snrs],
-                                [float(e) for e in freqs],
+                                [
+                                    float(e) if e is not None else None
+                                    for e in rssis
+                                ],
+                                [
+                                    float(e) if e is not None else None
+                                    for e in snrs
+                                ],
+                                [
+                                    float(e) if e is not None else None
+                                    for e in freqs
+                                ],
                             )
 
                         result = Measurement(
@@ -416,13 +431,16 @@ class State:
                         "sub": (
                             {
                                 "rssi": [
-                                    round(e, 1) for e in m.sub_measurement.rssi
+                                    round(e, 1) if e is not None else None
+                                    for e in m.sub_measurement.rssi
                                 ],
                                 "snr": [
-                                    round(e, 1) for e in m.sub_measurement.snr
+                                    round(e, 1) if e is not None else None
+                                    for e in m.sub_measurement.snr
                                 ],
                                 "freq": [
-                                    round(e, 3) for e in m.sub_measurement.freq
+                                    round(e, 3) if e is not None else None
+                                    for e in m.sub_measurement.freq
                                 ],
                             }
                             if m.sub_measurement is not None
