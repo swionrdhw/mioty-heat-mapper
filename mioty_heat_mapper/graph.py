@@ -1,3 +1,4 @@
+import json
 import logging
 import math
 import matplotlib.pyplot as plt
@@ -6,8 +7,14 @@ import statistics
 from PIL import Image
 from matplotlib.axes import Axes
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
+from mioty_heat_mapper import wgs84
+from mioty_heat_mapper.acmqtti import (
+    build_locadis_supply_rss_data_request,
+    build_locadis_train_request,
+)
+from mioty_heat_mapper.measurement import Location
 from mioty_heat_mapper.misc import image_has_transparency, load_image_as_png
 from mioty_heat_mapper.state import State
 
@@ -54,6 +61,7 @@ def generate_graph(
     # Extracts the data points to be plotted.
     data_points: list[DataPoint] = []
     base_stations: dict[str, BaseStation] = {}
+    val_count = 0
 
     for key, loc in [
         (key, loc)
@@ -91,6 +99,7 @@ def generate_graph(
             ]
         if len(vals) == 0:
             continue
+        val_count = val_count + len(vals)
         agg = max(vals) if bs_key is None else statistics.median(vals)
         data_points.append(DataPoint(loc.position[0], loc.position[1], agg))
 
@@ -99,8 +108,10 @@ def generate_graph(
     if len(data_points) < 4:
         print(f"Skipping {key} with too few data points.")
         return
-    else:
-        print(f"Plotting {key} with {len(data_points)} data points...")
+
+    print(f"Plotting {key}...")
+    print(f" - {len(data_points)} data points (locations)")
+    print(f" - {val_count} individual values")
 
     # Determines effective vmin, vmax and vzero.
     vmin = factor.vmin
@@ -225,3 +236,65 @@ def generate_graphs(config_path: Path, state: State) -> None:
     for bs_key in base_stations:
         for key in state.factors.keys():
             generate_graph(config_path, state, key, bs_key=bs_key)
+
+
+def generate_locadis(config_path: Path, state: State) -> None:
+    """
+    Generates all training data sets for locadis.
+    """
+
+    if state.wgs84 is None:
+        print("Cannot generate locadis data without WGS84 coordinates")
+        exit(1)
+
+    logging.debug("Generating locadis messages...")
+
+    # Loads the background image and determines its size.
+    try:
+        img, img_bytes, canvas_size = load_image_as_png(
+            state.map_path, state.dpi
+        )
+        xmax, ymax = img.size
+    except Exception as e:
+        print(f"Error loading background image: {e}")
+        exit(1)
+
+    def json_rpc(id: int, payload: dict[str, Any]) -> str:
+        return json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": id,
+                **payload,
+            }
+        )
+
+    config_dir = config_path.parents[0]
+    config_name = config_path.stem
+    world = wgs84.World(state.wgs84, xmax, ymax)
+
+    locs = [
+        (
+            world.to_wgs(loc.position[0], loc.position[1]),
+            [r for r in loc.measurements],
+        )
+        for loc in state.locations
+    ]
+
+    file_name = "measurements.jsonl"
+    (config_dir / config_name).mkdir(exist_ok=True)
+    full_path = config_dir / config_name / file_name
+
+    _id = 0
+    with open(full_path, "w") as f:
+        for c, results in locs:
+            if len(results) == 0:
+                continue
+
+            _id = _id + 1
+            j = json_rpc(_id, build_locadis_train_request(c.lat(), c.lon()))
+            f.write(f"{j}\n")
+
+            for m in results:
+                _id = _id + 1
+                j = json_rpc(_id, build_locadis_supply_rss_data_request(m))
+                f.write(f"{j}\n")

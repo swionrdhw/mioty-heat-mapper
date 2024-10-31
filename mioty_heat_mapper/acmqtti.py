@@ -36,6 +36,45 @@ class AcmqttiConfig:
         self.username = username
 
 
+def build_locadis_supply_rss_data_request(m: Measurement) -> dict[str, Any]:
+    rss = [
+        {
+            "id": m.bs_key,
+            "channelType": "MIOTY",
+            "rssValue": m.rssi,
+            "snrValue": m.snr,
+            "frequency": None,
+        }
+    ]
+    if m.sub_measurement is not None:
+        subs = zip(
+            m.sub_measurement.rssi,
+            m.sub_measurement.snr,
+            m.sub_measurement.freq,
+        )
+        rss.extend(
+            [
+                {
+                    "id": f"{m.bs_key}_sub_{idx}",
+                    "channelType": "MIOTY",
+                    "rssValue": ms[0],
+                    "snrValue": ms[1],
+                    "frequency": ms[2],
+                }
+                for idx, ms in enumerate(subs)
+                if ms[0] is not None and ms[1] is not None
+            ]
+        )
+    return {
+        "method": "supplyRssData",
+        "params": [
+            {"nodeUUID": "ffb0fc73-a71f-4606-a439-dcbec3b76576"},
+            {"rss": rss},
+            {"timestamp": 0},
+        ],
+    }
+
+
 def build_locadis_train_request(lat: float, lon: float) -> dict[str, Any]:
     return {
         "methods": "train",

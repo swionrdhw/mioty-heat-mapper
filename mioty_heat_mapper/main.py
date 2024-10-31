@@ -6,7 +6,7 @@ from pathlib import Path
 
 from mioty_heat_mapper import __version__
 from mioty_heat_mapper.state import init_config, load_config
-from mioty_heat_mapper.graph import generate_graphs
+from mioty_heat_mapper.graph import generate_graphs, generate_locadis
 from mioty_heat_mapper.gui import start_gui
 from mioty_heat_mapper.wgs84 import sanity_check_impl
 
@@ -32,6 +32,21 @@ def driver() -> None:
         parents=[parent_parser],
     )
     init.add_argument(
+        "--config",
+        "-c",
+        dest="config_path",
+        required=False,
+        default="config.json",
+        help="Path to configuration file (default 'config.json').",
+    )
+
+    locadis = subparsers.add_parser(
+        "locadis",
+        description="Converts the measured data into locadis training sets.",
+        help="Converts the measured data into locadis training sets.",
+        parents=[parent_parser],
+    )
+    locadis.add_argument(
         "--config",
         "-c",
         dest="config_path",
@@ -129,6 +144,9 @@ def driver() -> None:
 
     elif args.mode == "plot":
         generate_graphs(config_path, config)
+
+    elif args.mode == "locadis":
+        generate_locadis(config_path, config)
 
 
 def __init__() -> None:
